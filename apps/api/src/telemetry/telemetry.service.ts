@@ -12,7 +12,6 @@ export class TelemetryService {
   ) {}
 
   async record(dto: CreateTelemetryDto): Promise<TelemetryEntry> {
-    // Verify the vehicle exists via its id without loading the full record
     const entry = this.telemetryRepo.create({
       vehicle: { id: dto.vehicleId },
       latitude: dto.latitude,
@@ -33,5 +32,12 @@ export class TelemetryService {
       }
       throw err;
     }
+  }
+
+  findLastPoint(vehicleId: string): Promise<TelemetryEntry | null> {
+    return this.telemetryRepo.findOne({
+      where: { vehicle: { id: vehicleId } },
+      order: { recordedAt: 'DESC' },
+    });
   }
 }

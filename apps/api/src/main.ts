@@ -1,13 +1,17 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api');
 
+  // ── Validation ────────────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -16,9 +20,25 @@ async function bootstrap() {
     }),
   );
 
+  // ── Error handling & logging ──────────────────────────────────────────────
+  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalInterceptors(new LoggingInterceptor());
+
+  // ── Swagger ───────────────────────────────────────────────────────────────
+  const config = new DocumentBuilder()
+    .setTitle('RoadPulse API')
+    .setDescription('Fleet management — vehicles & telemetry')
+    .setVersion('1.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('docs', app, document);
+
+  // ── Start ─────────────────────────────────────────────────────────────────
   const port = process.env['PORT'] ?? 3000;
   await app.listen(port);
-  console.log(`🚀 RoadPulse API running on http://localhost:${port}/api`);
+  console.log(`🚀 API       http://localhost:${port}/api`);
+  console.log(`📖 Swagger   http://localhost:${port}/docs`);
 }
 
 bootstrap();
