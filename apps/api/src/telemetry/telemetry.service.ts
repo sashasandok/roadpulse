@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { AlertsService } from '../alerts/alerts.service';
 import { CreateTelemetryDto } from './dto/create-telemetry.dto';
 import { TelemetryEntry } from './entities/telemetry-entry.entity';
 import { TelemetryGateway } from './telemetry.gateway';
@@ -11,6 +12,7 @@ export class TelemetryService {
     @InjectRepository(TelemetryEntry)
     private readonly telemetryRepo: Repository<TelemetryEntry>,
     private readonly gateway: TelemetryGateway,
+    private readonly alertsService: AlertsService,
   ) {}
 
   async record(dto: CreateTelemetryDto): Promise<TelemetryEntry> {
@@ -27,6 +29,7 @@ export class TelemetryService {
     try {
       const saved = await this.telemetryRepo.save(entry);
       this.gateway.broadcast(saved);
+      void this.alertsService.check(saved);
       return saved;
     } catch (err: unknown) {
       // FK violation – the vehicleId does not exist

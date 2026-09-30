@@ -1,10 +1,15 @@
+import { useState } from 'react';
+import type { AlertPayload } from '@roadpulse/shared';
 import type { CarState, Fleet } from '../hooks/useFleet';
+import { AlertFeed } from './AlertFeed';
 
 interface SidebarProps {
   fleet: Fleet;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   connected: boolean;
+  alerts: AlertPayload[];
+  onMarkRead: (id: string) => void;
 }
 
 // ── Fuel bar ──────────────────────────────────────────────────────────────────
@@ -120,12 +125,15 @@ function CarDetails({ car, onClose }: { car: CarState; onClose: () => void }) {
 }
 
 // ── Sidebar root ──────────────────────────────────────────────────────────────
-export function Sidebar({ fleet, selectedId, onSelect, connected }: SidebarProps) {
+export function Sidebar({ fleet, selectedId, onSelect, connected, alerts, onMarkRead }: SidebarProps) {
+  const [tab, setTab] = useState<'fleet' | 'alerts'>('fleet');
+
   const cars = Array.from(fleet.values()).sort((a, b) =>
     a.vehicle.number.localeCompare(b.vehicle.number),
   );
   const movingCount = cars.filter((c) => c.ignition).length;
   const selectedCar = selectedId != null ? fleet.get(selectedId) : undefined;
+  const unreadCount = alerts.filter((a) => !a.isRead).length;
 
   return (
     <aside className="sidebar">
@@ -138,31 +146,58 @@ export function Sidebar({ fleet, selectedId, onSelect, connected }: SidebarProps
         </span>
       </div>
 
-      {/* Car list */}
-      <div className="sidebar__list">
-        {cars.length === 0 ? (
-          <p className="sidebar__empty">
-            No vehicles yet.
-            <br />
-            Start the simulator.
-          </p>
-        ) : (
-          cars.map((car) => (
-            <CarCard
-              key={car.vehicle.id}
-              car={car}
-              selected={car.vehicle.id === selectedId}
-              onClick={() =>
-                onSelect(car.vehicle.id === selectedId ? null : car.vehicle.id)
-              }
-            />
-          ))
-        )}
+      {/* Tabs */}
+      <div className="sidebar__tabs">
+        <button
+          className={`sidebar__tab${tab === 'fleet' ? ' sidebar__tab--active' : ''}`}
+          onClick={() => setTab('fleet')}
+        >
+          Fleet
+        </button>
+        <button
+          className={`sidebar__tab${tab === 'alerts' ? ' sidebar__tab--active' : ''}`}
+          onClick={() => setTab('alerts')}
+        >
+          Alerts
+          {unreadCount > 0 && (
+            <span className="sidebar__tab-badge">{unreadCount}</span>
+          )}
+        </button>
       </div>
 
-      {/* Details panel */}
-      {selectedCar && (
-        <CarDetails car={selectedCar} onClose={() => onSelect(null)} />
+      {tab === 'fleet' ? (
+        <>
+          {/* Car list */}
+          <div className="sidebar__list">
+            {cars.length === 0 ? (
+              <p className="sidebar__empty">
+                No vehicles yet.
+                <br />
+                Start the simulator.
+              </p>
+            ) : (
+              cars.map((car) => (
+                <CarCard
+                  key={car.vehicle.id}
+                  car={car}
+                  selected={car.vehicle.id === selectedId}
+                  onClick={() =>
+                    onSelect(car.vehicle.id === selectedId ? null : car.vehicle.id)
+                  }
+                />
+              ))
+            )}
+          </div>
+
+          {/* Details panel */}
+          {selectedCar && (
+            <CarDetails car={selectedCar} onClose={() => onSelect(null)} />
+          )}
+        </>
+      ) : (
+        <div className="sidebar__list">
+          <AlertFeed alerts={alerts} fleet={fleet} onMarkRead={onMarkRead} />
+        </div>
       )}
     </aside>
   );
