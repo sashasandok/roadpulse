@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateTelemetryDto } from './dto/create-telemetry.dto';
 import { TelemetryEntry } from './entities/telemetry-entry.entity';
+import { TelemetryGateway } from './telemetry.gateway';
 
 @Injectable()
 export class TelemetryService {
   constructor(
     @InjectRepository(TelemetryEntry)
     private readonly telemetryRepo: Repository<TelemetryEntry>,
+    private readonly gateway: TelemetryGateway,
   ) {}
 
   async record(dto: CreateTelemetryDto): Promise<TelemetryEntry> {
@@ -23,7 +25,9 @@ export class TelemetryService {
     });
 
     try {
-      return await this.telemetryRepo.save(entry);
+      const saved = await this.telemetryRepo.save(entry);
+      this.gateway.broadcast(saved);
+      return saved;
     } catch (err: unknown) {
       // FK violation – the vehicleId does not exist
       const pg = err as { code?: string };

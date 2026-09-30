@@ -1,0 +1,114 @@
+import { useEffect, useState } from 'react';
+import { io } from 'socket.io-client';
+import type { LastPosition, TelemetryUpdatePayload, Vehicle } from '@roadpulse/shared';
+import { WS_EVENTS } from '@roadpulse/shared';
+
+export interface CarState {
+  vehicle: Vehicle;
+  lat: number;
+  lng: number;
+  speed: number;
+  fuel: number;
+  ignition: boolean;
+  hasPosition: boolean;
+  lastUpdate: Date | null;
+}
+
+export type Fleet = Map<string, CarState>;
+
+const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000/api';
+const WS_URL = API_BASE.replace('/api', '');
+
+export function useFleet() {
+  const [fleet, setFleet] = useState<Fleet>(new Map());
+  const [connected, setConnected] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    // ── 1. Load vehicles from REST, then fetch their last positions ──────────
+    void (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/vehicles`);
+        const vehicles = (await res.json()) as Vehicle[];
+        if (cancelled) return;
+
+        // Seed the fleet with vehicle metadata (no position yet)
+        const initial = new Map<string, CarState>();
+        for (const v of vehicles) {
+          initial.set(v.id, {
+            vehicle: v,
+            lat: 0,
+            lng: 0,
+            speed: 0,
+            fuel: 100,
+            ignition: false,
+            hasPosition: false,
+            lastUpdate: null,
+          });
+        }
+        setFleet(initial);
+
+        // Fetch last known position for each vehicle (best-effort)
+        await Promise.allSettled(
+          vehicles.map(async (v) => {
+            try {
+              const r = await fetch(`${API_BASE}/vehicles/${v.id}/last-position`);
+              if (!r.ok) return;
+              const pos = (await r.json()) as LastPosition;
+              if (cancelled) return;
+              setFleet((prev) => {
+                const car = prev.get(v.id);
+                if (!car) return prev;
+                return new Map(prev).set(v.id, {
+                  ...car,
+                  lat: Number(pos.latitude),
+                  lng: Number(pos.longitude),
+                  speed: Number(pos.speed),
+                  fuel: Number(pos.fuel),
+                  ignition: pos.ignition,
+                  hasPosition: true,
+                  lastUpdate: new Date(pos.recordedAt),
+                });
+              });
+            } catch {
+              // No telemetry yet for this vehicle — that's fine
+            }
+          }),
+        );
+      } catch (err) {
+        console.error('[useFleet] Failed to load vehicles:', err);
+      }
+    })();
+
+    // ── 2. WebSocket — live telemetry updates ────────────────────────────────
+    const socket = io(WS_URL, { transports: ['websocket'] });
+
+    socket.on('connect', () => setConnected(true));
+    socket.on('disconnect', () => setConnected(false));
+
+    socket.on(WS_EVENTS.TELEMETRY_UPDATE, (data: TelemetryUpdatePayload) => {
+      setFleet((prev) => {
+        const car = prev.get(data.vehicleId);
+        if (!car) return prev; // vehicle not yet in fleet; next REST poll will add it
+        return new Map(prev).set(data.vehicleId, {
+          ...car,
+          lat: data.latitude,
+          lng: data.longitude,
+          speed: data.speed,
+          fuel: data.fuel,
+          ignition: data.ignition,
+          hasPosition: true,
+          lastUpdate: new Date(data.recordedAt),
+        });
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      socket.disconnect();
+    };
+  }, []);
+
+  return { fleet, connected };
+}

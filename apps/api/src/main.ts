@@ -11,6 +11,15 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
 
+  // ── CORS (allow Vite dev server + production build) ───────────────────────
+  app.enableCors({
+    origin: [
+      'http://localhost:5173', // Vite dev
+      'http://localhost:4173', // Vite preview
+    ],
+    credentials: true,
+  });
+
   // ── Validation ────────────────────────────────────────────────────────────
   app.useGlobalPipes(
     new ValidationPipe({
@@ -39,6 +48,7 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 API       http://localhost:${port}/api`);
   console.log(`📖 Swagger   http://localhost:${port}/docs`);
+  console.log(`🔌 WebSocket http://localhost:${port}  (Socket.IO)`);
 }
 
 bootstrap();
