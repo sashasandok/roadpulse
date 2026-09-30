@@ -82,15 +82,19 @@ export function useFleet() {
     })();
 
     // ── 2. WebSocket — live telemetry updates ────────────────────────────────
-    const socket = io(WS_URL, { transports: ['websocket'] });
+    // autoConnect: false + deferred connect survives React StrictMode's
+    // double-invoke: if cleanup fires before the timeout the connect never opens,
+    // avoiding the "WebSocket closed before connection established" warning.
+    const socket = io(WS_URL, { transports: ['websocket'], autoConnect: false });
 
-    socket.on('connect', () => setConnected(true));
-    socket.on('disconnect', () => setConnected(false));
+    socket.on('connect', () => { if (!cancelled) setConnected(true); });
+    socket.on('disconnect', () => { if (!cancelled) setConnected(false); });
 
     socket.on(WS_EVENTS.TELEMETRY_UPDATE, (data: TelemetryUpdatePayload) => {
+      if (cancelled) return;
       setFleet((prev) => {
         const car = prev.get(data.vehicleId);
-        if (!car) return prev; // vehicle not yet in fleet; next REST poll will add it
+        if (!car) return prev;
         return new Map(prev).set(data.vehicleId, {
           ...car,
           lat: data.latitude,
@@ -104,8 +108,11 @@ export function useFleet() {
       });
     });
 
+    const connectTimer = setTimeout(() => socket.connect(), 0);
+
     return () => {
       cancelled = true;
+      clearTimeout(connectTimer);
       socket.disconnect();
     };
   }, []);
