@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { TelemetryModule } from './telemetry/telemetry.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { VehiclesModule } from './vehicles/vehicles.module';
       }),
     }),
     VehiclesModule,
+    TelemetryModule,
   ],
 })
 export class AppModule {}
