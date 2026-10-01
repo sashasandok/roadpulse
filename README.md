@@ -8,8 +8,9 @@ A fleet operator (delivery vans, service cars, taxis) needs to answer a few ques
 
 - **Where is every vehicle right now**, and is it moving, parked, or not reporting at all?
 - **Is anything wrong**: a driver speeding, a van leaving the service area, an engine idling for minutes, a tank running low?
+- **What happened earlier**: which trips a vehicle made on a given day, how far and how fast it drove, and what route it took.
 
-RoadPulse collects GPS telemetry from vehicles, stores it, and pushes every update to a web dashboard over WebSockets, so the map moves in real time without page refreshes. A rule engine checks each telemetry point and raises alerts as they happen.
+RoadPulse collects GPS telemetry from vehicles, stores it, and pushes every update to a web dashboard over WebSockets, so the map moves in real time without page refreshes. A rule engine checks each telemetry point and raises alerts as they happen. The stored history is split into trips that can be reviewed and replayed on the map.
 
 Since there are no real vehicles in development, the repo includes a **traffic simulator** that drives virtual vans along real Kyiv streets (routes from OSRM) and reports telemetry exactly like a GPS tracker would.
 
@@ -33,7 +34,9 @@ Since there are no real vehicles in development, the repo includes a **traffic s
 2. **API** validates and saves the point, then:
    - broadcasts it to all browsers as a `telemetry:update` event;
    - runs the alert rules and, if one fires, saves the alert and broadcasts `alert:new`.
-3. **Web** loads vehicles and their last known positions over REST, then applies live updates from the WebSocket. Markers glide between positions; vehicles that appear after the page was opened are added automatically.
+3. **Web** has two modes, switched in the header:
+   - **Live** loads vehicles and their last known positions over REST, then applies updates from the WebSocket. Markers glide between positions; vehicles that appear after the page was opened are added automatically.
+   - **History** shows the trips of a chosen vehicle on a chosen day, with their routes on the map and a replay of any trip.
 
 ### Vehicle status
 
@@ -55,6 +58,24 @@ Status is derived from the data and how fresh it is, not just the last value rec
 | `GEOFENCE`    | position outside the Kyiv bounding box             | 5 min                |
 | `IDLE_ENGINE` | ignition on but not moving for more than 5 minutes | 5 min                |
 
+### Trips
+
+A **trip** is a continuous run of telemetry points with the ignition on. It starts when ignition turns on and ends when it turns off, or when the vehicle sends nothing for more than 5 minutes (so a tracker that went silent doesn't produce an endless trip).
+
+Trips aren't stored; the API computes them from raw telemetry on each request with a single SQL query (window functions), using the `(vehicleId, recorded_at)` index. For each trip it returns:
+
+| Field         | How it's calculated                                           |
+| ------------- | ------------------------------------------------------------- |
+| `distanceKm`  | Sum of straight-line (haversine) distances between points     |
+| `durationSec` | Time between the first and last point                         |
+| `avgSpeedKmh` | `distanceKm` ÷ duration                                       |
+| `maxSpeedKmh` | Highest reported speed                                        |
+| `path`        | Route simplified to about 100 points, for drawing an overview |
+
+Trips that cross the edges of the requested range (e.g. past midnight) are returned whole.
+
+In the **History** view, pick a vehicle and a day to see its trips and day totals. Click a trip, in the list or on the map, to load its full route and replay it: play/pause, a time slider, and 10×–120× speed. The replay bar shows the time and the speed at that moment.
+
 ## Tech stack
 
 | Part      | Technology                                                      |
@@ -70,7 +91,7 @@ Status is derived from the data and how fresh it is, not just the last value rec
 ```
 apps/
   api/          NestJS backend: vehicles, telemetry, alerts, WebSocket gateways
-  web/          React dashboard: map, fleet sidebar, alert feed
+  web/          React dashboard: live map, fleet sidebar, alert feed, trip history and replay
   simulator/    Kyiv traffic simulator that feeds the API with telemetry
 packages/
   shared/       Types and event names shared by API, web and simulator
@@ -177,6 +198,8 @@ All REST endpoints are under `/api`. Full, interactive documentation is at `/doc
 | `GET`    | `/api/vehicles`                   | List vehicles                      |
 | `GET`    | `/api/vehicles/:id`               | Get one vehicle                    |
 | `GET`    | `/api/vehicles/:id/last-position` | Latest telemetry point             |
+| `GET`    | `/api/vehicles/:id/trips?from&to` | Trips with stats (range ≤ 31 days) |
+| `GET`    | `/api/vehicles/:id/track?from&to` | All points, oldest first (≤ 1 day) |
 | `PATCH`  | `/api/vehicles/:id`               | Update a vehicle                   |
 | `DELETE` | `/api/vehicles/:id`               | Delete a vehicle and its telemetry |
 | `POST`   | `/api/telemetry`                  | Submit a telemetry point           |
@@ -190,7 +213,9 @@ All REST endpoints are under `/api`. Full, interactive documentation is at `/doc
 | `telemetry:update` | `{ vehicleId, latitude, longitude, speed, fuel, ignition, recordedAt }` |
 | `alert:new`        | `{ id, vehicleId, type, message, isRead, createdAt }`                   |
 
-Payload types live in [`packages/shared/src/index.ts`](packages/shared/src/index.ts).
+`from` and `to` are ISO 8601 timestamps, e.g. `?from=2026-10-01T00:00:00Z&to=2026-10-02T00:00:00Z`.
+
+Payload types (including `Trip` and `TrackPoint`) live in [`packages/shared/src/index.ts`](packages/shared/src/index.ts).
 
 ## Scripts
 
@@ -224,4 +249,5 @@ Payload types live in [`packages/shared/src/index.ts`](packages/shared/src/index
 - **Cars don't appear or don't move.** Check the simulator terminal for errors. `Failed to set up vehicles` means the API isn't reachable at `API_URL`; `Route fetch failed` means OSRM is unreachable or rate-limiting (the simulator retries automatically).
 - **Status badge says "Reconnecting…".** The browser can't reach the API's WebSocket. Make sure the API is running and `VITE_API_URL` points to it.
 - **Many "Offline" vehicles.** These are vehicles that stopped reporting, for example from an older simulator setup. Delete them with `DELETE /api/vehicles/:id`, or reset all data with `docker compose down -v` followed by `npm run db:up`.
+- **No trips in History.** Trips need telemetry for that day with the ignition on; the date picker uses your local time zone. Check that the simulator was running on the chosen day.
 - **Port already in use.** Change `POSTGRES_PORT` (in both the root and API `.env`) or `PORT` in the API `.env`.

@@ -35,6 +35,33 @@ export interface TelemetryUpdatePayload {
   recordedAt: string;
 }
 
+// ── Trip shapes ──────────────────────────────────────────────────────────────
+
+/** A continuous ignition-on period, as returned by GET /api/vehicles/:id/trips */
+export interface Trip {
+  /** Stable within a vehicle: ISO timestamp of the first point */
+  id: string;
+  vehicleId: string;
+  startedAt: string;
+  endedAt: string;
+  durationSec: number;
+  distanceKm: number;
+  avgSpeedKmh: number;
+  maxSpeedKmh: number;
+  pointCount: number;
+  /** Simplified route (≤ ~100 points) for drawing overviews: [lat, lng][] */
+  path: [number, number][];
+}
+
+/** One telemetry point of a track, as returned by GET /api/vehicles/:id/track */
+export interface TrackPoint {
+  lat: number;
+  lng: number;
+  speed: number;
+  ignition: boolean;
+  recordedAt: string;
+}
+
 // ── Alert shapes ─────────────────────────────────────────────────────────────
 
 export type AlertType = 'SPEEDING' | 'GEOFENCE' | 'IDLE_ENGINE' | 'LOW_FUEL';
