@@ -17,6 +17,22 @@ export interface TelemetryPayload {
   recordedAt: string;
 }
 
+export async function listVehicles(): Promise<VehicleRecord[]> {
+  const res = await fetch(`${config.apiUrl}/vehicles`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`List vehicles failed [${res.status}]: ${body}`);
+  }
+  return res.json() as Promise<VehicleRecord[]>;
+}
+
+export async function getLastPosition(vehicleId: string): Promise<{ lat: number; lng: number } | null> {
+  const res = await fetch(`${config.apiUrl}/vehicles/${vehicleId}/last-position`);
+  if (!res.ok) return null;
+  const pos = (await res.json()) as { latitude: string | number; longitude: string | number };
+  return { lat: Number(pos.latitude), lng: Number(pos.longitude) };
+}
+
 export async function registerVehicle(
   number: string,
   model: string,

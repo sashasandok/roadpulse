@@ -25,6 +25,7 @@ export function useFleet() {
 
   useEffect(() => {
     let cancelled = false;
+    const knownIds = new Set<string>();
 
     // ── 1. Load vehicles from REST, then fetch their last positions ──────────
     void (async () => {
@@ -36,6 +37,7 @@ export function useFleet() {
         // Seed the fleet with vehicle metadata (no position yet)
         const initial = new Map<string, CarState>();
         for (const v of vehicles) {
+          knownIds.add(v.id);
           initial.set(v.id, {
             vehicle: v,
             lat: 0,
@@ -90,13 +92,13 @@ export function useFleet() {
     socket.on('connect', () => { if (!cancelled) setConnected(true); });
     socket.on('disconnect', () => { if (!cancelled) setConnected(false); });
 
-    socket.on(WS_EVENTS.TELEMETRY_UPDATE, (data: TelemetryUpdatePayload) => {
-      if (cancelled) return;
+    const applyUpdate = (data: TelemetryUpdatePayload, vehicle?: Vehicle) => {
       setFleet((prev) => {
         const car = prev.get(data.vehicleId);
-        if (!car) return prev;
+        const base = car?.vehicle ?? vehicle;
+        if (!base) return prev;
         return new Map(prev).set(data.vehicleId, {
-          ...car,
+          vehicle: base,
           lat: data.latitude,
           lng: data.longitude,
           speed: data.speed,
@@ -106,6 +108,28 @@ export function useFleet() {
           lastUpdate: new Date(data.recordedAt),
         });
       });
+    };
+
+    // Vehicles registered after page load (e.g. simulator restart) are fetched on first sight.
+    const pending = new Set<string>();
+
+    socket.on(WS_EVENTS.TELEMETRY_UPDATE, (data: TelemetryUpdatePayload) => {
+      if (cancelled) return;
+      if (knownIds.has(data.vehicleId)) {
+        applyUpdate(data);
+        return;
+      }
+      if (pending.has(data.vehicleId)) return;
+      pending.add(data.vehicleId);
+      void fetch(`${API_BASE}/vehicles/${data.vehicleId}`)
+        .then((r) => (r.ok ? (r.json() as Promise<Vehicle>) : null))
+        .then((v) => {
+          if (cancelled || !v) return;
+          knownIds.add(v.id);
+          applyUpdate(data, v);
+        })
+        .catch(() => {})
+        .finally(() => pending.delete(data.vehicleId));
     });
 
     const connectTimer = setTimeout(() => socket.connect(), 0);

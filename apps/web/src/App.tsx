@@ -3,9 +3,11 @@ import { MapView } from './components/MapView';
 import { Sidebar } from './components/Sidebar';
 import { useAlerts } from './hooks/useAlerts';
 import { useFleet } from './hooks/useFleet';
+import { useNow } from './status';
 
 export function App() {
   const { fleet, connected } = useFleet();
+  const now = useNow();
   const { alerts, markRead } = useAlerts();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -19,6 +21,7 @@ export function App() {
       <main className="content">
         <Sidebar
           fleet={fleet}
+          now={now}
           selectedId={selectedId}
           onSelect={setSelectedId}
           connected={connected}
@@ -29,6 +32,7 @@ export function App() {
         <div className="map-wrapper">
           <MapView
             fleet={fleet}
+            now={now}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />

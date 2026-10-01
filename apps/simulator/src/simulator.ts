@@ -1,10 +1,7 @@
-import { postTelemetry, registerVehicle } from './api-client';
+import { getLastPosition, listVehicles, postTelemetry, registerVehicle } from './api-client';
 import { Car } from './car';
 import { config } from './config';
 import { DRIVERS, MODELS, pick } from './kyiv';
-
-/** Unique run-id prefix so restarts don't clash on vehicle numbers. */
-const RUN_ID = Date.now().toString(36).slice(-4).toUpperCase();
 
 export async function run(): Promise<void> {
   console.log('╔══════════════════════════════════════╗');
@@ -16,23 +13,25 @@ export async function run(): Promise<void> {
   console.log(`  OSRM        : ${config.osrmUrl}`);
   console.log();
 
-  // ── 1. Register vehicles ────────────────────────────────────────────────
+  // ── 1. Reuse existing vehicles by number, register missing ones ─────────
   const cars: Car[] = [];
 
-  for (let i = 1; i <= config.carCount; i++) {
-    const number = `RP-${RUN_ID}-${String(i).padStart(2, '0')}`;
-    const model = pick(MODELS);
-    const driver = pick(DRIVERS);
+  try {
+    const existing = new Map((await listVehicles()).map((v) => [v.number, v]));
 
-    try {
-      const vehicle = await registerVehicle(number, model, driver);
-      console.log(`✅  ${number}  ${model.padEnd(22)}  ${driver}  [${vehicle.id.slice(0, 8)}]`);
-      cars.push(new Car(vehicle.id));
-    } catch (err) {
-      console.error(`❌  Failed to register ${number}:`, (err as Error).message);
-      console.error('    Is the API running? Check API_URL in .env');
-      process.exit(1);
+    for (let i = 1; i <= config.carCount; i++) {
+      const number = `RP-${String(i).padStart(2, '0')}`;
+      const found = existing.get(number);
+      const vehicle = found ?? (await registerVehicle(number, pick(MODELS), pick(DRIVERS)));
+      const tag = found ? '♻️ ' : '✅ ';
+      console.log(`${tag} ${number}  ${vehicle.model.padEnd(22)}  ${vehicle.driver}  [${vehicle.id.slice(0, 8)}]`);
+      const start = found ? await getLastPosition(vehicle.id) : null;
+      cars.push(new Car(vehicle.id, start ?? undefined));
     }
+  } catch (err) {
+    console.error('❌  Failed to set up vehicles:', (err as Error).message);
+    console.error('    Is the API running? Check API_URL in .env');
+    process.exit(1);
   }
 
   console.log(`\n⏳  Fetching initial routes from OSRM…\n`);

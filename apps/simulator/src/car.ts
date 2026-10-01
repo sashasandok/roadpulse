@@ -18,6 +18,7 @@ export class Car {
   private status: CarStatus = 'fetching';
   private route: Coord[] = [];
   private routeIndex = 0;
+  private segProgressKm = 0; // distance already covered within route[routeIndex] → route[routeIndex+1]
   private lat = 0;
   private lng = 0;
   private speed = 0;     // km/h
@@ -26,8 +27,12 @@ export class Car {
   private parkUntil = 0;
   private tag: string;   // short id for logs
 
-  constructor(vehicleId: string) {
+  constructor(vehicleId: string, start?: Coord) {
     this.vehicleId = vehicleId;
+    if (start) {
+      this.lat = start.lat;
+      this.lng = start.lng;
+    }
     this.tag = vehicleId.slice(0, 8);
     this.fuel = 80 + Math.random() * 20; // start 80–100 %
     void this.fetchNewRoute();
@@ -48,15 +53,17 @@ export class Car {
       const curr = this.route[this.routeIndex]!;
       const next = this.route[this.routeIndex + 1]!;
       const segKm = distanceKm(curr, next);
+      const segLeftKm = segKm - this.segProgressKm;
 
-      if (segKm <= distToTravel) {
-        distToTravel -= segKm;
+      if (segLeftKm <= distToTravel) {
+        distToTravel -= segLeftKm;
         this.routeIndex++;
+        this.segProgressKm = 0;
         this.lat = next.lat;
         this.lng = next.lng;
       } else {
-        // Interpolate within segment
-        const t = segKm > 0 ? distToTravel / segKm : 0;
+        this.segProgressKm += distToTravel;
+        const t = this.segProgressKm / segKm;
         this.lat = curr.lat + (next.lat - curr.lat) * t;
         this.lng = curr.lng + (next.lng - curr.lng) * t;
         distToTravel = 0;
@@ -130,6 +137,7 @@ export class Car {
 
         this.route = route;
         this.routeIndex = 0;
+        this.segProgressKm = 0;
         this.lat = route[0]!.lat;
         this.lng = route[0]!.lng;
         this.speed = MIN_SPEED + Math.random() * 30; // start 20–50 km/h

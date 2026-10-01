@@ -1,10 +1,26 @@
 import { useState } from 'react';
 import type { AlertPayload } from '@roadpulse/shared';
 import type { CarState, Fleet } from '../hooks/useFleet';
+import { formatAgo, getStatus, STATUS_LABEL, type CarStatus } from '../status';
 import { AlertFeed } from './AlertFeed';
+
+const STATUS_CLASS: Record<CarStatus, string> = {
+  moving: 'status-green',
+  parked: 'status-gray',
+  offline: 'status-offline',
+  'no-signal': 'status-gray',
+};
+
+function statusText(car: CarState, status: CarStatus, now: number): string {
+  if (status === 'offline' && car.lastUpdate) {
+    return `${STATUS_LABEL.offline} · ${formatAgo(car.lastUpdate, now)}`;
+  }
+  return STATUS_LABEL[status];
+}
 
 interface SidebarProps {
   fleet: Fleet;
+  now: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   connected: boolean;
@@ -28,21 +44,27 @@ function FuelBar({ pct }: { pct: number }) {
 // ── Single car card ───────────────────────────────────────────────────────────
 function CarCard({
   car,
+  now,
   selected,
   onClick,
 }: {
   car: CarState;
+  now: number;
   selected: boolean;
   onClick: () => void;
 }) {
-  const status = !car.hasPosition ? 'No signal' : car.ignition ? 'Moving' : 'Parked';
-  const statusClass = !car.hasPosition ? 'status-gray' : car.ignition ? 'status-green' : 'status-gray';
+  const status = getStatus(car, now);
+  const classes = ['car-card'];
+  if (selected) classes.push('car-card--selected');
+  if (status === 'offline') classes.push('car-card--offline');
 
   return (
-    <button className={`car-card ${selected ? 'car-card--selected' : ''}`} onClick={onClick}>
+    <button className={classes.join(' ')} onClick={onClick}>
       <div className="car-card__header">
         <span className="car-card__number">{car.vehicle.number}</span>
-        <span className={`car-card__status ${statusClass}`}>{status}</span>
+        <span className={`car-card__status ${STATUS_CLASS[status]}`}>
+          {statusText(car, status, now)}
+        </span>
       </div>
 
       <div className="car-card__model">{car.vehicle.model}</div>
@@ -59,7 +81,8 @@ function CarCard({
 }
 
 // ── Selected car details panel ────────────────────────────────────────────────
-function CarDetails({ car, onClose }: { car: CarState; onClose: () => void }) {
+function CarDetails({ car, now, onClose }: { car: CarState; now: number; onClose: () => void }) {
+  const status = getStatus(car, now);
   return (
     <div className="car-details">
       <div className="car-details__title">
@@ -82,8 +105,8 @@ function CarDetails({ car, onClose }: { car: CarState; onClose: () => void }) {
           <tr>
             <td>Status</td>
             <td>
-              <span className={car.ignition ? 'status-green' : 'status-gray'}>
-                {car.ignition ? '🟢 Moving' : '⚫ Parked'}
+              <span className={`car-card__status ${STATUS_CLASS[status]}`}>
+                {statusText(car, status, now)}
               </span>
             </td>
           </tr>
@@ -125,13 +148,13 @@ function CarDetails({ car, onClose }: { car: CarState; onClose: () => void }) {
 }
 
 // ── Sidebar root ──────────────────────────────────────────────────────────────
-export function Sidebar({ fleet, selectedId, onSelect, connected, alerts, onMarkRead }: SidebarProps) {
+export function Sidebar({ fleet, now, selectedId, onSelect, connected, alerts, onMarkRead }: SidebarProps) {
   const [tab, setTab] = useState<'fleet' | 'alerts'>('fleet');
 
   const cars = Array.from(fleet.values()).sort((a, b) =>
     a.vehicle.number.localeCompare(b.vehicle.number),
   );
-  const movingCount = cars.filter((c) => c.ignition).length;
+  const movingCount = cars.filter((c) => getStatus(c, now) === 'moving').length;
   const selectedCar = selectedId != null ? fleet.get(selectedId) : undefined;
   const unreadCount = alerts.filter((a) => !a.isRead).length;
 
@@ -180,6 +203,7 @@ export function Sidebar({ fleet, selectedId, onSelect, connected, alerts, onMark
                 <CarCard
                   key={car.vehicle.id}
                   car={car}
+                  now={now}
                   selected={car.vehicle.id === selectedId}
                   onClick={() =>
                     onSelect(car.vehicle.id === selectedId ? null : car.vehicle.id)
@@ -191,7 +215,7 @@ export function Sidebar({ fleet, selectedId, onSelect, connected, alerts, onMark
 
           {/* Details panel */}
           {selectedCar && (
-            <CarDetails car={selectedCar} onClose={() => onSelect(null)} />
+            <CarDetails car={selectedCar} now={now} onClose={() => onSelect(null)} />
           )}
         </>
       ) : (
