@@ -15,9 +15,7 @@ export class AlertsGateway {
       message: alert.message,
       isRead: alert.isRead,
       createdAt:
-        alert.createdAt instanceof Date
-          ? alert.createdAt.toISOString()
-          : String(alert.createdAt),
+        alert.createdAt instanceof Date ? alert.createdAt.toISOString() : String(alert.createdAt),
     });
   }
 }

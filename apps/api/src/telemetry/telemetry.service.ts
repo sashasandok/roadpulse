@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AlertsService } from '../alerts/alerts.service';
@@ -8,6 +8,8 @@ import { TelemetryGateway } from './telemetry.gateway';
 
 @Injectable()
 export class TelemetryService {
+  private readonly logger = new Logger(TelemetryService.name);
+
   constructor(
     @InjectRepository(TelemetryEntry)
     private readonly telemetryRepo: Repository<TelemetryEntry>,
@@ -29,7 +31,9 @@ export class TelemetryService {
     try {
       const saved = await this.telemetryRepo.save(entry);
       this.gateway.broadcast(saved);
-      void this.alertsService.check(saved);
+      this.alertsService
+        .check(saved)
+        .catch((e: unknown) => this.logger.error(`Alert check failed: ${(e as Error).message}`));
       return saved;
     } catch (err: unknown) {
       // FK violation – the vehicleId does not exist

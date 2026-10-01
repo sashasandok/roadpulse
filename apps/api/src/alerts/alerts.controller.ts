@@ -1,4 +1,4 @@
-import { Controller, Get, NotFoundException, Param, Patch } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AlertsService } from './alerts.service';
 
@@ -15,7 +15,7 @@ export class AlertsController {
 
   @Patch(':id/read')
   @ApiOperation({ summary: 'Mark alert as read' })
-  async markRead(@Param('id') id: string) {
+  async markRead(@Param('id', ParseUUIDPipe) id: string) {
     const alert = await this.alertsService.markRead(id);
     if (!alert) throw new NotFoundException(`Alert #${id} not found`);
     return alert;

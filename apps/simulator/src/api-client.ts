@@ -26,7 +26,9 @@ export async function listVehicles(): Promise<VehicleRecord[]> {
   return res.json() as Promise<VehicleRecord[]>;
 }
 
-export async function getLastPosition(vehicleId: string): Promise<{ lat: number; lng: number } | null> {
+export async function getLastPosition(
+  vehicleId: string,
+): Promise<{ lat: number; lng: number } | null> {
   const res = await fetch(`${config.apiUrl}/vehicles/${vehicleId}/last-position`);
   if (!res.ok) return null;
   const pos = (await res.json()) as { latitude: string | number; longitude: string | number };

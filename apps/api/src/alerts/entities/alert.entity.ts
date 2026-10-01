@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, Index, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  RelationId,
+} from 'typeorm';
 import { Vehicle } from '../../vehicles/entities/vehicle.entity';
 
 export enum AlertType {
@@ -16,6 +24,9 @@ export class Alert {
 
   @ManyToOne(() => Vehicle, { onDelete: 'CASCADE' })
   vehicle!: Vehicle;
+
+  @RelationId((alert: Alert) => alert.vehicle)
+  vehicleId!: string;
 
   @Column({ type: 'varchar', length: 20 })
   type!: AlertType;

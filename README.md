@@ -1,6 +1,20 @@
 # RoadPulse
 
+[![CI](https://github.com/sashasandok/roadpulse/actions/workflows/ci.yml/badge.svg)](https://github.com/sashasandok/roadpulse/actions/workflows/ci.yml)
+
 Real-time fleet monitoring: a live map of your vehicles, their speed, fuel and status, with automatic alerts when something goes wrong.
+
+```bash
+git clone https://github.com/sashasandok/roadpulse.git && cd roadpulse
+docker compose up
+```
+
+Then open <http://localhost:8080>: five vans start driving across Kyiv within a few seconds.
+
+<!-- TODO: add media, then uncomment
+![Live map with vehicles moving in real time](docs/demo.gif)
+![Trip history with route replay](docs/history.png)
+-->
 
 ## What problem it solves
 
@@ -78,41 +92,64 @@ In the **History** view, pick a vehicle and a day to see its trips and day total
 
 ## Tech stack
 
-| Part      | Technology                                                      |
-| --------- | --------------------------------------------------------------- |
-| API       | NestJS 10, TypeORM, PostgreSQL 17, Socket.IO, Swagger           |
-| Web       | React 18, Vite, Leaflet / react-leaflet, socket.io-client       |
-| Simulator | Node.js + TypeScript, OSRM public routing API                   |
-| Shared    | `@roadpulse/shared`: REST/WebSocket payload types and constants |
-| Tooling   | npm workspaces, TypeScript, ESLint, Prettier, Docker Compose    |
+| Part      | Technology                                                       |
+| --------- | ---------------------------------------------------------------- |
+| API       | NestJS 10, TypeORM, PostgreSQL 17, Socket.IO, Swagger            |
+| Web       | React 18, Vite, Leaflet / react-leaflet, socket.io-client        |
+| Simulator | Node.js + TypeScript, OSRM public routing API                    |
+| Shared    | `@roadpulse/shared`: REST/WebSocket payload types and constants  |
+| Testing   | Jest, Supertest, PostgreSQL service container in CI              |
+| Delivery  | Docker multi-stage builds, nginx, Docker Compose, GitHub Actions |
+| Tooling   | npm workspaces, TypeScript, ESLint, Prettier                     |
 
 ## Project structure
 
 ```
 apps/
-  api/          NestJS backend: vehicles, telemetry, alerts, WebSocket gateways
+  api/          NestJS backend: vehicles, telemetry, alerts, trips, WebSocket gateways
+    test/       e2e tests (Supertest) and test-database setup
   web/          React dashboard: live map, fleet sidebar, alert feed, trip history and replay
   simulator/    Kyiv traffic simulator that feeds the API with telemetry
 packages/
   shared/       Types and event names shared by API, web and simulator
-docker-compose.yml   PostgreSQL for local development
+.github/workflows/ci.yml   Lint, typecheck, tests, build and Docker images on every push
+docker-compose.yml         Whole stack (db, api, web, simulator)
 ```
 
 ## Getting started
 
-### Requirements
+There are two ways to run RoadPulse: the whole stack in Docker (one command, nothing else to install), or the apps locally with hot reload for development.
 
-- Node.js 22+ (`nvm use` picks the version from `.nvmrc`)
-- Docker with Docker Compose
-- Internet access for the simulator (OSRM routing) and the web map (OpenStreetMap tiles)
+### Option A: Docker (one command)
 
-### 1. Install dependencies
+Requires Docker with Docker Compose, and internet access (OSRM routing, OpenStreetMap tiles).
+
+```bash
+docker compose up
+```
+
+| Service     | What it runs                                                             |
+| ----------- | ------------------------------------------------------------------------ |
+| `db`        | PostgreSQL 17, published on `localhost:5433`                             |
+| `api`       | NestJS API; applies database migrations on start                         |
+| `web`       | nginx serving the dashboard on <http://localhost:8080>, proxying the API |
+| `simulator` | Starts once the API is healthy and drives `RP-01`…`RP-05`                |
+
+The browser only talks to nginx: it serves the built React app and proxies `/api`, `/docs` and the WebSocket (`/socket.io`) to the API container. Swagger is at <http://localhost:8080/docs>.
+
+Stop with `Ctrl+C` or `docker compose down`. Data is kept in the `db-data` volume; `docker compose down -v` deletes it. Ports and simulator settings can be overridden with the variables in [Docker Compose](#root-env-docker-compose).
+
+### Option B: Local development
+
+Requires Node.js 22+ (`nvm use` picks the version from `.nvmrc`) and Docker for the database.
+
+#### 1. Install dependencies
 
 ```bash
 npm install
 ```
 
-### 2. Configure environment
+#### 2. Configure environment
 
 ```bash
 cp .env.example .env                                   # database (Docker Compose)
@@ -122,7 +159,7 @@ cp apps/simulator/.env.example apps/simulator/.env     # simulator
 
 The defaults work out of the box; change them only if a port is taken. See [Environment variables](#environment-variables).
 
-### 3. Start the database
+#### 3. Start the database
 
 ```bash
 npm run db:up
@@ -130,7 +167,7 @@ npm run db:up
 
 PostgreSQL starts in the background on `localhost:5433`. Data is kept in the `db-data` Docker volume between restarts.
 
-### 4. Start the apps
+#### 4. Start the apps
 
 Run each in its own terminal, in this order:
 
@@ -140,9 +177,11 @@ npm run dev -w @roadpulse/web               # Web on http://localhost:5173
 npm run start:dev -w @roadpulse/simulator   # starts sending telemetry
 ```
 
-In development the API creates and updates the database schema automatically (`synchronize` is on when `NODE_ENV` is not `production`).
+The API applies any pending [database migrations](#database-migrations) on startup, so the schema is created on first run.
 
-### 5. Open the dashboard
+Don't run the local simulator and the Docker stack at the same time: they share the database and would both drive `RP-01`…`RP-05`.
+
+#### 5. Open the dashboard
 
 - Dashboard: <http://localhost:5173>
 - API docs (Swagger): <http://localhost:3000/docs>
@@ -153,25 +192,33 @@ Within a few seconds of starting the simulator you should see five vans moving a
 
 ### Root `.env` (Docker Compose)
 
-| Variable            | Default     | Description                            |
-| ------------------- | ----------- | -------------------------------------- |
-| `POSTGRES_USER`     | `roadpulse` | Database user                          |
-| `POSTGRES_PASSWORD` | `roadpulse` | Database password                      |
-| `POSTGRES_DB`       | `roadpulse` | Database name                          |
-| `POSTGRES_PORT`     | `5433`      | Host port the database is published on |
+All optional; Docker Compose reads them from the root `.env` or the shell.
+
+| Variable            | Default                          | Description                               |
+| ------------------- | -------------------------------- | ----------------------------------------- |
+| `POSTGRES_USER`     | `roadpulse`                      | Database user                             |
+| `POSTGRES_PASSWORD` | `roadpulse`                      | Database password                         |
+| `POSTGRES_DB`       | `roadpulse`                      | Database name                             |
+| `POSTGRES_PORT`     | `5433`                           | Host port the database is published on    |
+| `WEB_PORT`          | `8080`                           | Host port for the dashboard (Docker)      |
+| `SPEED_LIMIT_KMH`   | `90`                             | `SPEEDING` alert threshold (Docker)       |
+| `CAR_COUNT`         | `5`                              | Simulated vehicles (Docker)               |
+| `TICK_INTERVAL_MS`  | `1500`                           | Simulator reporting interval (Docker)     |
+| `OSRM_URL`          | `http://router.project-osrm.org` | Routing server for the simulator (Docker) |
 
 ### `apps/api/.env`
 
-| Variable            | Default       | Description                                            |
-| ------------------- | ------------- | ------------------------------------------------------ |
-| `POSTGRES_HOST`     | `localhost`   | Database host                                          |
-| `POSTGRES_PORT`     | `5433`        | Database port (must match the root `.env`)             |
-| `POSTGRES_USER`     | `roadpulse`   | Database user                                          |
-| `POSTGRES_PASSWORD` | `roadpulse`   | Database password                                      |
-| `POSTGRES_DB`       | `roadpulse`   | Database name                                          |
-| `PORT`              | `3000`        | HTTP and WebSocket port                                |
-| `NODE_ENV`          | `development` | `production` disables auto schema sync and SQL logging |
-| `SPEED_LIMIT_KMH`   | `90`          | Threshold for the `SPEEDING` alert                     |
+| Variable            | Default                                       | Description                                          |
+| ------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| `POSTGRES_HOST`     | `localhost`                                   | Database host                                        |
+| `POSTGRES_PORT`     | `5433`                                        | Database port (must match the root `.env`)           |
+| `POSTGRES_USER`     | `roadpulse`                                   | Database user                                        |
+| `POSTGRES_PASSWORD` | `roadpulse`                                   | Database password                                    |
+| `POSTGRES_DB`       | `roadpulse`                                   | Database name                                        |
+| `PORT`              | `3000`                                        | HTTP and WebSocket port                              |
+| `NODE_ENV`          | `development`                                 | `development` logs SQL queries                       |
+| `SPEED_LIMIT_KMH`   | `90`                                          | Threshold for the `SPEEDING` alert                   |
+| `CORS_ORIGINS`      | `http://localhost:5173,http://localhost:4173` | Comma-separated origins allowed to call the REST API |
 
 ### `apps/simulator/.env`
 
@@ -217,6 +264,40 @@ All REST endpoints are under `/api`. Full, interactive documentation is at `/doc
 
 Payload types (including `Trip` and `TrackPoint`) live in [`packages/shared/src/index.ts`](packages/shared/src/index.ts).
 
+## Testing
+
+```bash
+npm run db:up        # tests need PostgreSQL
+npm test             # service tests
+npm run test:e2e     # HTTP end-to-end tests
+```
+
+Tests use a separate database, `roadpulse_test`, which is created automatically and built from migrations, so your development data is never touched.
+
+| Suite                                                                  | What it covers                                                                                                                                                               |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`alerts.service.spec.ts`](apps/api/src/alerts/alerts.service.spec.ts) | Every alert rule, thresholds, per-vehicle cooldowns and idle-engine timing. Pure unit tests: repository and gateway are mocked, the clock is faked.                          |
+| [`trips.service.spec.ts`](apps/api/src/trips/trips.service.spec.ts)    | Trip splitting (ignition, 5-minute gaps, blips, other vehicles), distance/speed/duration, path simplification, trips crossing midnight, range validation. Runs the real SQL. |
+| [`app.e2e-spec.ts`](apps/api/test/app.e2e-spec.ts)                     | The full app over HTTP with Supertest: vehicles CRUD and validation, telemetry and last position, alerts, trips and track, error codes.                                      |
+
+## Continuous integration
+
+[GitHub Actions](.github/workflows/ci.yml) runs on every push and pull request, in three parallel jobs:
+
+1. **Lint, typecheck & build**: ESLint, Prettier check, TypeScript for every workspace, production builds.
+2. **Unit & e2e tests**: against a PostgreSQL 17 service container.
+3. **Docker images**: builds all three images with `docker compose build`.
+
+## Database migrations
+
+The schema is managed by TypeORM migrations in [`apps/api/src/migrations`](apps/api/src/migrations), and the API applies pending ones on startup in every environment.
+
+After changing an entity, generate a migration, register it in [`migrations/index.ts`](apps/api/src/migrations/index.ts) and restart the API:
+
+```bash
+npm run migration:generate -w @roadpulse/api -- src/migrations/AddSomething
+```
+
 ## Scripts
 
 ### Root
@@ -228,6 +309,8 @@ Payload types (including `Trip` and `TrackPoint`) live in [`packages/shared/src/
 | `npm run lint`         | Run ESLint                         |
 | `npm run format`       | Format with Prettier               |
 | `npm run format:check` | Check formatting                   |
+| `npm test`             | Service tests (needs the database) |
+| `npm run test:e2e`     | e2e API tests (needs the database) |
 | `npm run db:up`        | Start PostgreSQL in the background |
 | `npm run db:down`      | Stop containers (data is kept)     |
 
@@ -239,10 +322,12 @@ Payload types (including `Trip` and `TrackPoint`) live in [`packages/shared/src/
 |                        | `build` / `start:prod`               | Production build and run           |
 |                        | `migration:generate <path>`          | Generate a migration from entities |
 |                        | `migration:run` / `migration:revert` | Apply / roll back migrations       |
+|                        | `test` / `test:cov` / `test:e2e`     | Tests, with coverage, e2e          |
 | `@roadpulse/web`       | `dev`                                | Vite dev server                    |
 |                        | `build` / `preview`                  | Production build and local preview |
 | `@roadpulse/simulator` | `start:dev`                          | Run with auto-restart on changes   |
 |                        | `start`                              | Run once                           |
+|                        | `build` / `start:prod`               | Compile and run the compiled build |
 
 ## Troubleshooting
 
@@ -250,4 +335,6 @@ Payload types (including `Trip` and `TrackPoint`) live in [`packages/shared/src/
 - **Status badge says "Reconnecting…".** The browser can't reach the API's WebSocket. Make sure the API is running and `VITE_API_URL` points to it.
 - **Many "Offline" vehicles.** These are vehicles that stopped reporting, for example from an older simulator setup. Delete them with `DELETE /api/vehicles/:id`, or reset all data with `docker compose down -v` followed by `npm run db:up`.
 - **No trips in History.** Trips need telemetry for that day with the ignition on; the date picker uses your local time zone. Check that the simulator was running on the chosen day.
-- **Port already in use.** Change `POSTGRES_PORT` (in both the root and API `.env`) or `PORT` in the API `.env`.
+- **Port already in use.** Change `POSTGRES_PORT` (in both the root and API `.env`), `PORT` in the API `.env`, or `WEB_PORT` for the Docker dashboard.
+- **Tests fail with "Tests need PostgreSQL".** Start the database with `npm run db:up`, or point `POSTGRES_HOST`/`POSTGRES_PORT` at another PostgreSQL server.
+- **`docker compose up` shows an old version.** Rebuild the images with `docker compose up --build`.

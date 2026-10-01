@@ -133,11 +133,7 @@ function CarDetails({ car, now, onClose }: { car: CarState; now: number; onClose
               </tr>
               <tr>
                 <td>Updated</td>
-                <td>
-                  {car.lastUpdate
-                    ? car.lastUpdate.toLocaleTimeString()
-                    : '—'}
-                </td>
+                <td>{car.lastUpdate ? car.lastUpdate.toLocaleTimeString() : '—'}</td>
               </tr>
             </>
           )}
@@ -148,7 +144,15 @@ function CarDetails({ car, now, onClose }: { car: CarState; now: number; onClose
 }
 
 // ── Sidebar root ──────────────────────────────────────────────────────────────
-export function Sidebar({ fleet, now, selectedId, onSelect, connected, alerts, onMarkRead }: SidebarProps) {
+export function Sidebar({
+  fleet,
+  now,
+  selectedId,
+  onSelect,
+  connected,
+  alerts,
+  onMarkRead,
+}: SidebarProps) {
   const [tab, setTab] = useState<'fleet' | 'alerts'>('fleet');
 
   const cars = Array.from(fleet.values()).sort((a, b) =>
@@ -182,9 +186,7 @@ export function Sidebar({ fleet, now, selectedId, onSelect, connected, alerts, o
           onClick={() => setTab('alerts')}
         >
           Alerts
-          {unreadCount > 0 && (
-            <span className="sidebar__tab-badge">{unreadCount}</span>
-          )}
+          {unreadCount > 0 && <span className="sidebar__tab-badge">{unreadCount}</span>}
         </button>
       </div>
 
@@ -205,18 +207,14 @@ export function Sidebar({ fleet, now, selectedId, onSelect, connected, alerts, o
                   car={car}
                   now={now}
                   selected={car.vehicle.id === selectedId}
-                  onClick={() =>
-                    onSelect(car.vehicle.id === selectedId ? null : car.vehicle.id)
-                  }
+                  onClick={() => onSelect(car.vehicle.id === selectedId ? null : car.vehicle.id)}
                 />
               ))
             )}
           </div>
 
           {/* Details panel */}
-          {selectedCar && (
-            <CarDetails car={selectedCar} now={now} onClose={() => onSelect(null)} />
-          )}
+          {selectedCar && <CarDetails car={selectedCar} now={now} onClose={() => onSelect(null)} />}
         </>
       ) : (
         <div className="sidebar__list">

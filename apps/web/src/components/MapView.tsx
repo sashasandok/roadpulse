@@ -64,9 +64,15 @@ interface MapViewProps {
   onSelect: (id: string) => void;
 }
 
-function tooltipText(status: CarStatus, speed: number, lastUpdate: Date | null, now: number): string {
+function tooltipText(
+  status: CarStatus,
+  speed: number,
+  lastUpdate: Date | null,
+  now: number,
+): string {
   if (status === 'moving') return `${speed.toFixed(0)} km/h`;
-  if (status === 'offline' && lastUpdate) return `Offline · last seen ${formatAgo(lastUpdate, now)}`;
+  if (status === 'offline' && lastUpdate)
+    return `Offline · last seen ${formatAgo(lastUpdate, now)}`;
   return 'Parked';
 }
 

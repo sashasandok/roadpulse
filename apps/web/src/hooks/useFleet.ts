@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import type { LastPosition, TelemetryUpdatePayload, Vehicle } from '@roadpulse/shared';
 import { WS_EVENTS } from '@roadpulse/shared';
+import { API_BASE, WS_URL } from '../config';
 
 export interface CarState {
   vehicle: Vehicle;
@@ -15,9 +16,6 @@ export interface CarState {
 }
 
 export type Fleet = Map<string, CarState>;
-
-const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000/api';
-const WS_URL = API_BASE.replace('/api', '');
 
 export function useFleet() {
   const [fleet, setFleet] = useState<Fleet>(new Map());
@@ -89,8 +87,12 @@ export function useFleet() {
     // avoiding the "WebSocket closed before connection established" warning.
     const socket = io(WS_URL, { transports: ['websocket'], autoConnect: false });
 
-    socket.on('connect', () => { if (!cancelled) setConnected(true); });
-    socket.on('disconnect', () => { if (!cancelled) setConnected(false); });
+    socket.on('connect', () => {
+      if (!cancelled) setConnected(true);
+    });
+    socket.on('disconnect', () => {
+      if (!cancelled) setConnected(false);
+    });
 
     const applyUpdate = (data: TelemetryUpdatePayload, vehicle?: Vehicle) => {
       setFleet((prev) => {

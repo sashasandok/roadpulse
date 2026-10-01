@@ -3,8 +3,7 @@ import { io } from 'socket.io-client';
 import type { AlertPayload } from '@roadpulse/shared';
 import { WS_EVENTS } from '@roadpulse/shared';
 
-const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000/api';
-const WS_URL = API_BASE.replace('/api', '');
+import { API_BASE, WS_URL } from '../config';
 
 export function useAlerts() {
   const [alerts, setAlerts] = useState<AlertPayload[]>([]);

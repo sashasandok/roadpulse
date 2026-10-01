@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { migrations } from './migrations';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { TripsModule } from './trips/trips.module';
 import { VehiclesModule } from './vehicles/vehicles.module';
@@ -22,7 +23,12 @@ import { VehiclesModule } from './vehicles/vehicles.module';
         password: config.get<string>('POSTGRES_PASSWORD', 'roadpulse'),
         database: config.get<string>('POSTGRES_DB', 'roadpulse'),
         autoLoadEntities: true,
-        synchronize: config.get<string>('NODE_ENV') !== 'production',
+        // Schema changes go through migrations in every environment, so a database
+        // created by `npm run start:dev` also works with the Docker stack and vice versa.
+        synchronize: false,
+        migrationsRun: true,
+        migrations,
+        migrationsTableName: 'typeorm_migrations',
         logging: config.get<string>('NODE_ENV') === 'development',
       }),
     }),

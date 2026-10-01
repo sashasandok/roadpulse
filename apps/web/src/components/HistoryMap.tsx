@@ -1,7 +1,15 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useEffect, useMemo } from 'react';
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from 'react-leaflet';
 import type { TrackPoint, Trip } from '@roadpulse/shared';
 import type { ReplayPosition } from '../hooks/useReplay';
 
@@ -31,12 +39,21 @@ interface HistoryMapProps {
   onSelectTrip: (id: string) => void;
 }
 
-export function HistoryMap({ trips, selectedTripId, track, position, onSelectTrip }: HistoryMapProps) {
+export function HistoryMap({
+  trips,
+  selectedTripId,
+  track,
+  position,
+  onSelectTrip,
+}: HistoryMapProps) {
   const trackLine = useMemo(() => track.map((p): [number, number] => [p.lat, p.lng]), [track]);
 
   const traveled = useMemo(() => {
     if (!position) return [];
-    return [...trackLine.slice(0, position.index + 1), [position.lat, position.lng] as [number, number]];
+    return [
+      ...trackLine.slice(0, position.index + 1),
+      [position.lat, position.lng] as [number, number],
+    ];
   }, [trackLine, position]);
 
   const boundsPoints = useMemo(
@@ -69,7 +86,10 @@ export function HistoryMap({ trips, selectedTripId, track, position, onSelectTri
 
       {trackLine.length > 1 && (
         <>
-          <Polyline positions={trackLine} pathOptions={{ color: '#94a3b8', weight: 5, opacity: 0.9 }} />
+          <Polyline
+            positions={trackLine}
+            pathOptions={{ color: '#94a3b8', weight: 5, opacity: 0.9 }}
+          />
           {traveled.length > 1 && (
             <Polyline positions={traveled} pathOptions={{ color: '#2563eb', weight: 5 }} />
           )}

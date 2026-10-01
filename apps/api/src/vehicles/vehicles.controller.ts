@@ -73,10 +73,7 @@ export class VehiclesController {
   @Patch(':id')
   @ApiOkResponse({ type: Vehicle })
   @ApiNotFoundResponse()
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateVehicleDto,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateVehicleDto) {
     return this.vehiclesService.update(id, dto);
   }
 

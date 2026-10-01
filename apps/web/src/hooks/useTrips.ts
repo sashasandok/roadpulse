@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { TrackPoint, Trip } from '@roadpulse/shared';
 
-const API_BASE = import.meta.env['VITE_API_URL'] ?? 'http://localhost:3000/api';
+import { API_BASE } from '../config';
 
 /** Local-time day boundaries for a YYYY-MM-DD date string. */
 export function dayRange(date: string): { from: string; to: string } {
@@ -34,7 +34,8 @@ function useFetch<T>(url: string | null, empty: T): FetchState<T> {
       })
       .then((data) => setState({ data, loading: false, error: null }))
       .catch((err: Error) => {
-        if (err.name !== 'AbortError') setState({ data: empty, loading: false, error: err.message });
+        if (err.name !== 'AbortError')
+          setState({ data: empty, loading: false, error: err.message });
       });
     return () => ctrl.abort();
   }, [url, empty]);

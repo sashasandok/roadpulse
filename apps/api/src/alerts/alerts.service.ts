@@ -50,18 +50,30 @@ export class AlertsService {
     const now = Date.now();
 
     if (speed > SPEED_LIMIT && this.canFire(vehicleId, AlertType.SPEEDING, 60_000)) {
-      await this.fire(vehicleId, AlertType.SPEEDING, `Speed ${speed.toFixed(0)} km/h exceeds limit of ${SPEED_LIMIT} km/h`);
+      await this.fire(
+        vehicleId,
+        AlertType.SPEEDING,
+        `Speed ${speed.toFixed(0)} km/h exceeds limit of ${SPEED_LIMIT} km/h`,
+      );
     }
 
     if (fuel < LOW_FUEL_PCT && this.canFire(vehicleId, AlertType.LOW_FUEL, 10 * 60_000)) {
-      await this.fire(vehicleId, AlertType.LOW_FUEL, `Fuel level ${fuel.toFixed(0)}% is critically low`);
+      await this.fire(
+        vehicleId,
+        AlertType.LOW_FUEL,
+        `Fuel level ${fuel.toFixed(0)}% is critically low`,
+      );
     }
 
     if (
       (lat < KYIV_LAT_MIN || lat > KYIV_LAT_MAX || lng < KYIV_LNG_MIN || lng > KYIV_LNG_MAX) &&
       this.canFire(vehicleId, AlertType.GEOFENCE, 5 * 60_000)
     ) {
-      await this.fire(vehicleId, AlertType.GEOFENCE, `Vehicle left Kyiv boundary (${lat.toFixed(4)}, ${lng.toFixed(4)})`);
+      await this.fire(
+        vehicleId,
+        AlertType.GEOFENCE,
+        `Vehicle left Kyiv boundary (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+      );
     }
 
     if (entry.ignition) {
@@ -71,8 +83,15 @@ export class AlertsService {
         const lastMoved = this.lastMovement.get(vehicleId);
         if (lastMoved === undefined) {
           this.lastMovement.set(vehicleId, now);
-        } else if (now - lastMoved > IDLE_ENGINE_MS && this.canFire(vehicleId, AlertType.IDLE_ENGINE, IDLE_ENGINE_MS)) {
-          await this.fire(vehicleId, AlertType.IDLE_ENGINE, `Engine running with no movement for over 5 minutes`);
+        } else if (
+          now - lastMoved > IDLE_ENGINE_MS &&
+          this.canFire(vehicleId, AlertType.IDLE_ENGINE, IDLE_ENGINE_MS)
+        ) {
+          await this.fire(
+            vehicleId,
+            AlertType.IDLE_ENGINE,
+            `Engine running with no movement for over 5 minutes`,
+          );
         }
       }
     } else {

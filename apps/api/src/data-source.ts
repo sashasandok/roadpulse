@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
+import { migrations } from './migrations';
 
 /**
  * Standalone DataSource used by the TypeORM CLI for migrations.
@@ -13,6 +14,6 @@ export default new DataSource({
   password: process.env['POSTGRES_PASSWORD'] ?? 'roadpulse',
   database: process.env['POSTGRES_DB'] ?? 'roadpulse',
   entities: ['src/**/*.entity.ts'],
-  migrations: ['src/migrations/*.ts'],
+  migrations,
   migrationsTableName: 'typeorm_migrations',
 });

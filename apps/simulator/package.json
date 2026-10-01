@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "start": "ts-node src/index.ts",
+    "start:prod": "node dist/index.js",
     "start:dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

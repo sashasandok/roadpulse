@@ -1,5 +1,8 @@
 name: roadpulse
 
+# `docker compose up` runs the whole project: http://localhost:8080
+# `npm run db:up` starts only the database, for local development.
+
 services:
   db:
     image: postgres:17-alpine
@@ -17,6 +20,49 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-roadpulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-roadpulse}
+      POSTGRES_DB: ${POSTGRES_DB:-roadpulse}
+      SPEED_LIMIT_KMH: ${SPEED_LIMIT_KMH:-90}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    ports:
+      - '${WEB_PORT:-8080}:80'
+    depends_on:
+      api:
+        condition: service_healthy
+
+  simulator:
+    build:
+      context: .
+      dockerfile: apps/simulator/Dockerfile
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:3000/api
+      CAR_COUNT: ${CAR_COUNT:-5}
+      TICK_INTERVAL_MS: ${TICK_INTERVAL_MS:-1500}
+      OSRM_URL: ${OSRM_URL:-http://router.project-osrm.org}
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   db-data:

@@ -1,8 +1,4 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
@@ -19,9 +15,7 @@ export class VehiclesService {
   async create(dto: CreateVehicleDto): Promise<Vehicle> {
     const existing = await this.vehiclesRepo.findOneBy({ number: dto.number });
     if (existing) {
-      throw new ConflictException(
-        `Vehicle with number "${dto.number}" already exists`,
-      );
+      throw new ConflictException(`Vehicle with number "${dto.number}" already exists`);
     }
 
     const vehicle = this.vehiclesRepo.create(dto);
@@ -46,9 +40,7 @@ export class VehiclesService {
     if (dto.number && dto.number !== vehicle.number) {
       const conflict = await this.vehiclesRepo.findOneBy({ number: dto.number });
       if (conflict) {
-        throw new ConflictException(
-          `Vehicle with number "${dto.number}" already exists`,
-        );
+        throw new ConflictException(`Vehicle with number "${dto.number}" already exists`);
       }
     }
 

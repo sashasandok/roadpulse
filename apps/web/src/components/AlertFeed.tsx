@@ -23,7 +23,13 @@ interface AlertFeedProps {
 
 export function AlertFeed({ alerts, fleet, onMarkRead }: AlertFeedProps) {
   if (alerts.length === 0) {
-    return <p className="sidebar__empty">No alerts yet.<br />Start the simulator.</p>;
+    return (
+      <p className="sidebar__empty">
+        No alerts yet.
+        <br />
+        Start the simulator.
+      </p>
+    );
   }
 
   return (

@@ -24,10 +24,24 @@ function formatTime(iso: string | number): string {
 }
 
 function formatClock(ms: number): string {
-  return new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(ms).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
-function TripCard({ trip, index, selected, onClick }: { trip: Trip; index: number; selected: boolean; onClick: () => void }) {
+function TripCard({
+  trip,
+  index,
+  selected,
+  onClick,
+}: {
+  trip: Trip;
+  index: number;
+  selected: boolean;
+  onClick: () => void;
+}) {
   return (
     <button className={`car-card ${selected ? 'car-card--selected' : ''}`} onClick={onClick}>
       <div className="car-card__header">
@@ -45,9 +59,16 @@ function TripCard({ trip, index, selected, onClick }: { trip: Trip; index: numbe
   );
 }
 
-export function HistoryView({ fleet, initialVehicleId }: { fleet: Fleet; initialVehicleId: string | null }) {
+export function HistoryView({
+  fleet,
+  initialVehicleId,
+}: {
+  fleet: Fleet;
+  initialVehicleId: string | null;
+}) {
   const vehicles = useMemo(
-    () => Array.from(fleet.values(), (c) => c.vehicle).sort((a, b) => a.number.localeCompare(b.number)),
+    () =>
+      Array.from(fleet.values(), (c) => c.vehicle).sort((a, b) => a.number.localeCompare(b.number)),
     [fleet],
   );
 
@@ -90,7 +111,12 @@ export function HistoryView({ fleet, initialVehicleId }: { fleet: Fleet; initial
           </label>
           <label className="history-field">
             <span>Day</span>
-            <input type="date" value={date} max={todayLocal()} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            <input
+              type="date"
+              value={date}
+              max={todayLocal()}
+              onChange={(e) => e.target.value && setDate(e.target.value)}
+            />
           </label>
         </div>
 
@@ -139,7 +165,11 @@ export function HistoryView({ fleet, initialVehicleId }: { fleet: Fleet; initial
               <span className="replay-bar__info">Couldn't load route: {track.error}</span>
             ) : (
               <>
-                <button className="replay-bar__play" onClick={replay.togglePlay} aria-label={replay.playing ? 'Pause' : 'Play'}>
+                <button
+                  className="replay-bar__play"
+                  onClick={replay.togglePlay}
+                  aria-label={replay.playing ? 'Pause' : 'Play'}
+                >
                   {replay.playing ? '❚❚' : '▶'}
                 </button>
                 <input

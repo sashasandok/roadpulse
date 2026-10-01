@@ -4,9 +4,9 @@ import { fetchRoute } from './osrm';
 
 type CarStatus = 'moving' | 'parked' | 'fetching';
 
-const MIN_SPEED = 20;  // km/h
-const MAX_SPEED = 90;  // km/h
-const FUEL_PER_KM = 0.07;         // % per km (city driving ~14 L/100km equivalent)
+const MIN_SPEED = 20; // km/h
+const MAX_SPEED = 90; // km/h
+const FUEL_PER_KM = 0.07; // % per km (city driving ~14 L/100km equivalent)
 const PARK_MIN_SEC = 10;
 const PARK_MAX_SEC = 60;
 const ROUTE_RETRY_DELAY_MS = 3_000;
@@ -21,11 +21,11 @@ export class Car {
   private segProgressKm = 0; // distance already covered within route[routeIndex] → route[routeIndex+1]
   private lat = 0;
   private lng = 0;
-  private speed = 0;     // km/h
-  private fuel: number;  // 0–100 %
+  private speed = 0; // km/h
+  private fuel: number; // 0–100 %
   private ignition = false;
   private parkUntil = 0;
-  private tag: string;   // short id for logs
+  private tag: string; // short id for logs
 
   constructor(vehicleId: string, start?: Coord) {
     this.vehicleId = vehicleId;
@@ -155,7 +155,9 @@ export class Car {
     }
 
     // Give up — park and try again after 30s
-    console.error(`[${this.tag}] Could not fetch route after ${ROUTE_MAX_RETRIES} attempts, parking 30s`);
+    console.error(
+      `[${this.tag}] Could not fetch route after ${ROUTE_MAX_RETRIES} attempts, parking 30s`,
+    );
     this.status = 'parked';
     this.parkUntil = Date.now() + 30_000;
   }

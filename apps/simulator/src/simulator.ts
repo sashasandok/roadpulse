@@ -24,7 +24,9 @@ export async function run(): Promise<void> {
       const found = existing.get(number);
       const vehicle = found ?? (await registerVehicle(number, pick(MODELS), pick(DRIVERS)));
       const tag = found ? '♻️ ' : '✅ ';
-      console.log(`${tag} ${number}  ${vehicle.model.padEnd(22)}  ${vehicle.driver}  [${vehicle.id.slice(0, 8)}]`);
+      console.log(
+        `${tag} ${number}  ${vehicle.model.padEnd(22)}  ${vehicle.driver}  [${vehicle.id.slice(0, 8)}]`,
+      );
       const start = found ? await getLastPosition(vehicle.id) : null;
       cars.push(new Car(vehicle.id, start ?? undefined));
     }
@@ -67,7 +69,9 @@ async function tick(cars: Car[], n: number): Promise<void> {
 
   // Status summary every 20 ticks (~30s at default interval)
   if (n % 20 === 0) {
-    console.log(`[Tick ${n}] Posted ${positioned.length - failed.length}/${positioned.length} points`);
+    console.log(
+      `[Tick ${n}] Posted ${positioned.length - failed.length}/${positioned.length} points`,
+    );
   }
 }
 
